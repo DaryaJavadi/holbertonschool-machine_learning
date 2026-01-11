@@ -17,5 +17,5 @@ def flip_switch(df):
     pd.DataFrame: The transformed DataFrame.
     """
     sorted_df = df.sort_index(ascending=False)
-    
+
     return sorted_df.T
