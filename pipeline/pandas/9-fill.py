@@ -8,7 +8,8 @@ values in a DataFrame according to specified rules.
 
 def fill(df):
     """
-    Remove the 'Weighted_Price' column, fill missing values in other columns as follows:
+    Remove the 'Weighted_Price' column, fill missing values in
+    other columns as follows:
     - Close: forward fill (previous row)
     - High, Low, Open: fill with the corresponding Close value in the same row
     - Volume_(BTC) and Volume_(Currency): fill with 0
@@ -30,5 +31,5 @@ def fill(df):
 
     for col in ['Volume_(BTC)', 'Volume_(Currency)']:
         df[col] = df[col].fillna(0)
-    
+
     return df
