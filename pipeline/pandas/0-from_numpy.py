@@ -10,5 +10,14 @@ import pandas as pd
 
 
 def from_numpy(array):
+    """
+    Create a pandas DataFrame from a NumPy ndarray.
+
+    Parameters:
+    array (np.ndarray): The input array to convert.
+
+    Returns:
+    pd.DataFrame: A DataFrame with columns labeled A, B, C, ...
+    """
     columns = [chr(65 + i) for i in range(array.shape[1])]
     return pd.DataFrame(array, columns=columns)
