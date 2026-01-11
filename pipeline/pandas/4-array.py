@@ -7,7 +7,6 @@ and converts them into a NumPy ndarray.
 """
 
 import pandas as pd
-import numpy as np
 
 
 def array(df):
