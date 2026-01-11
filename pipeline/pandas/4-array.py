@@ -6,6 +6,7 @@ This module contains a function `array` that selects the last
 and converts them into a NumPy ndarray.
 """
 
+
 def array(df):
     """
     Select the last 10 rows of the 'High' and 'Close' columns
