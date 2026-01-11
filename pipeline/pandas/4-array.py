@@ -6,10 +6,11 @@ New code updates the script to take the last 10 columns of High and Close
 """
 
 import pandas as pd
-from_file = __import__('2-from_file').from_file
 
-df = from_file('coinbaseUSD_1-min_data_2014-12-01_to_2019-01-09.csv', ',')
 
-A = df.loc[:, ['High', 'Close']].tail(10).to_numpy()
+def array(df):
+    from_file = __import__('2-from_file').from_file
 
-print(A)
+    df = from_file('coinbaseUSD_1-min_data_2014-12-01_to_2019-01-09.csv', ',')
+
+    return df.loc[:, ['High', 'Close']].tail(10).to_numpy()
