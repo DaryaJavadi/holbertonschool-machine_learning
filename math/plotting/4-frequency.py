@@ -17,7 +17,7 @@ def frequency():
     - Labels and title set
     """
     np.random.seed(5)
-    student_grades = np.random.normal(68, 15, 50)
+    student_grades = np.random.normal(68, 15, 50).round()
     plt.figure(figsize=(6.4, 4.8))
 
     bins = np.arange(0, 110, 10)
@@ -27,5 +27,4 @@ def frequency():
     plt.xlabel("Grades")
     plt.ylabel("Number of Students")
     plt.title("Project A")
-
     plt.show()
