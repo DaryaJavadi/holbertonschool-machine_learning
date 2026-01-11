@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 
 """
-This module contains a function `array` that selects the last
-10 rows of the 'High' and 'Close' columns from a pandas DataFrame
-and converts them into a NumPy ndarray.
+New code updates the script to take the last 10 columns of High and Close
+   and converts them into numpy.ndarray
 """
 
 import pandas as pd
+from_file = __import__('2-from_file').from_file
 
+df = from_file('coinbaseUSD_1-min_data_2014-12-01_to_2019-01-09.csv', ',')
 
-def array(df):
-    """
-    Select the last 10 rows of the 'High' and 'Close' columns
-    and convert them into a NumPy ndarray.
+A = df.loc[:, ['High', 'Close']].tail(10).to_numpy()
 
-    Parameters:
-    df (pd.DataFrame): Input DataFrame containing 'High' and 'Close' columns.
-
-    Returns:
-    np.ndarray: A NumPy array of the selected values.
-    """
-    return df[['High', 'Close']].tail(10).to_numpy()
+print(A)
