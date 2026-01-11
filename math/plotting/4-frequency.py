@@ -20,7 +20,7 @@ def frequency():
     student_grades = np.random.normal(68, 15, 50).astype(int)
     plt.figure(figsize=(6.4, 4.8))
 
-    bins = np.arange(0, 110, 10)
+    bins = np.arange(0, 101, 10)
 
     plt.hist(student_grades, bins=bins, edgecolor='black')
 
