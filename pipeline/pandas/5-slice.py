@@ -8,7 +8,7 @@ and selects every 60th row from a pandas DataFrame.
 
 def slice(df):
     """
-    Extract the columns High, Low, Close, and Volume_BTC, 
+    Extract the columns High, Low, Close, and Volume_BTC,
     and select every 60th row.
 
     Parameters:
@@ -18,5 +18,5 @@ def slice(df):
     pd.DataFrame: The sliced DataFrame.
     """
     selected_cols = df[['High', 'Low', 'Close', 'Volume_(BTC)']]
-    
+
     return selected_cols.iloc[::60]
