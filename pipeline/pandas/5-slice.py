@@ -17,6 +17,6 @@ def slice(df):
     Returns:
     pd.DataFrame: The sliced DataFrame.
     """
-    selected_cols = df[['High', 'Low', 'Close', 'Volume_BTC']]
+    selected_cols = df[['High', 'Low', 'Close', 'Volume_(BTC)']]
     
     return selected_cols.iloc[::60]
