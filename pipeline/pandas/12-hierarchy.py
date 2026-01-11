@@ -11,8 +11,8 @@ import pandas as pd
 
 def hierarchy(df1, df2):
     """
-    Rearrange the MultiIndex so Timestamp is the first level, 
-    select rows from timestamps 1417411980 to 1417417980, 
+    Rearrange the MultiIndex so Timestamp is the first level,
+    select rows from timestamps 1417411980 to 1417417980,
     concatenate df2 on top of df1, add keys, and ensure chronological order.
 
     Parameters:
