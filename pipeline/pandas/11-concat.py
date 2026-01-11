@@ -5,6 +5,8 @@ This module contains a function `concat` that concatenates two DataFrames
 after indexing on 'Timestamp' and selecting specific rows.
 """
 
+import pandas as pd
+
 
 def concat(df1, df2):
     """
@@ -25,6 +27,9 @@ def concat(df1, df2):
 
     df2_selected = df2_indexed.loc[:1417411920]
 
-    concatenated = df2_selected.append(df1_indexed, keys=['bitstamp', 'coinbase'])
+    concatenated = pd.concat(
+        [df2_selected, df1_indexed],
+        keys=['bitstamp', 'coinbase']
+    )
 
     return concatenated
