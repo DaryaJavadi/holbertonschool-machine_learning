@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 
-matrix_shape = __import__('2-size_me_please').matrix_shape
+if __name__ == '__main__':
+    cofactor = __import__('2-cofactor').cofactor
 
-mat1 = [[1, 2], [3, 4]]
-print(matrix_shape(mat1))
-mat2 = [[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12, 13, 14, 15]],
-        [[16, 17, 18, 19, 20], [21, 22, 23, 24, 25], [26, 27, 28, 29, 30]]]
-print(matrix_shape(mat2))
-mat3 = [[]]
-print(matrix_shape(mat3))
-mat4 = []
-print(matrix_shape(mat4))
-mat5 = 5
-print(matrix_shape(mat5))
+    mat1 = [[5]]
+    mat2 = [[1, 2], [3, 4]]
+    mat3 = [[1, 1], [1, 1]]
+    mat4 = [[5, 7, 9], [3, 1, 8], [6, 2, 4]]
+    mat5 = []
+    mat6 = [[1, 2, 3], [4, 5, 6]]
+
+    print(cofactor(mat1))
+    print(cofactor(mat2))
+    print(cofactor(mat3))
+    print(cofactor(mat4))
+    try:
+        cofactor(mat5)
+    except Exception as e:
+        print(e)
+    try:
+        cofactor(mat6)
+    except Exception as e:
+        print(e)

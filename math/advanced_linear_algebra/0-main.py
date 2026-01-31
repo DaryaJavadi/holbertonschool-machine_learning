@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 if __name__ == '__main__':
-    inverse = __import__('4-inverse').inverse
+    determinant = __import__('0-determinant').determinant
 
+    mat0 = [[]]
     mat1 = [[5]]
     mat2 = [[1, 2], [3, 4]]
     mat3 = [[1, 1], [1, 1]]
@@ -10,15 +11,16 @@ if __name__ == '__main__':
     mat5 = []
     mat6 = [[1, 2, 3], [4, 5, 6]]
 
-    print(inverse(mat1))
-    print(inverse(mat2))
-    print(inverse(mat3))
-    print(inverse(mat4))
+    print(determinant(mat0))
+    print(determinant(mat1))
+    print(determinant(mat2))
+    print(determinant(mat3))
+    print(determinant(mat4))
     try:
-        inverse(mat5)
+        determinant(mat5)
     except Exception as e:
         print(e)
     try:
-        inverse(mat6)
+        determinant(mat6)
     except Exception as e:
         print(e)
