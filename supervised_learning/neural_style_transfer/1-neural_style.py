@@ -1,41 +1,45 @@
 #!/usr/bin/env python3
-"""NST that performs tasks for neural style transfer"""
-
+"""A module that does the trick"""
 import numpy as np
 import tensorflow as tf
 
 
 class NST:
-    """
-    Performs tasks for Neural Style Transfer
-    """
-
-    style_layers = [
-        'block1_conv1', 'block2_conv1', 'block3_conv1',
-        'block4_conv1', 'block5_conv1'
-    ]
+    """A class that does the trick"""
+    style_layers = ['block1_conv1',
+                    'block2_conv1',
+                    'block3_conv1',
+                    'block4_conv1',
+                    'block5_conv1']
     content_layer = 'block5_conv2'
 
-    def __init__(self, style_image, content_image,
-                 alpha=1e4, beta=1):
-        if (type(style_image) is not np.ndarray or
+    def __init__(self, style_image, content_image, alpha=1e4, beta=1):
+        """Initialize the class"""
+        if (not isinstance(style_image, np.ndarray) or
                 len(style_image.shape) != 3 or
                 style_image.shape[2] != 3):
             raise TypeError(
                 "style_image must be a numpy.ndarray with shape (h, w, 3)"
             )
-
-        if (type(content_image) is not np.ndarray or
+        if (not isinstance(content_image, np.ndarray) or
                 len(content_image.shape) != 3 or
                 content_image.shape[2] != 3):
             raise TypeError(
                 "content_image must be a numpy.ndarray with shape (h, w, 3)"
             )
-
-        if not isinstance(alpha, (int, float)) or alpha < 0:
+        style_h, style_w, style_c = style_image.shape
+        content_h, content_w, content_c = content_image.shape
+        if style_h <= 0 or style_w <= 0 or style_c != 3:
+            raise TypeError(
+                "style_image must be a numpy.ndarray with shape (h, w, 3)")
+        if content_h <= 0 or content_w <= 0 or content_c != 3:
+            raise TypeError(
+                "content_image must be a numpy.ndarray with shape (h, w, 3)")
+        if (not isinstance(alpha, (int, float)) or
+                alpha < 0):
             raise TypeError("alpha must be a non-negative number")
-
-        if not isinstance(beta, (int, float)) or beta < 0:
+        if (not isinstance(beta, (int, float)) or
+                beta < 0):
             raise TypeError("beta must be a non-negative number")
 
         self.style_image = self.scale_image(style_image)
@@ -46,59 +50,55 @@ class NST:
 
     @staticmethod
     def scale_image(image):
-        """Scales image dimensions and values to 0-1"""
-        if (type(image) is not np.ndarray or
+        """Scale the image"""
+        if (not isinstance(image, np.ndarray) or
                 len(image.shape) != 3 or
                 image.shape[2] != 3):
             raise TypeError(
                 "image must be a numpy.ndarray with shape (h, w, 3)"
             )
-
-        h, w, c = image.shape
-
-        if h > w:
-            h_new = 512
-            w_new = int(w * (512 / h))
+        image_h, image_w, image_c = image.shape
+        if image_h <= 0 or image_w <= 0 or image_c != 3:
+            raise TypeError(
+                "image must be a numpy.ndarray with shape (h, w, 3)")
+        if image_h > image_w:
+            new_h = 512
+            new_w = int(image_w * 512 / image_h)
         else:
-            w_new = 512
-            h_new = int(h * (512 / w))
-
-        new_shape = (h_new, w_new)
-
-        image = np.expand_dims(image, axis=0)
-
-        scaled_image = tf.image.resize(
-            image, new_shape, method='bicubic'
+            new_w = 512
+            new_h = int(image_h * 512 / image_w)
+        resized_image = tf.image.resize(
+            image,
+            (new_h, new_w),
+            method=tf.image.ResizeMethod.BICUBIC
         )
-        scaled_image = tf.clip_by_value(
-            scaled_image / 255, 0, 1
-        )
-
-        return scaled_image
+        rescaled_image = resized_image / 255.0
+        rescaled_image = tf.clip_by_value(rescaled_image, 0.0, 1.0)
+        rescaled_image = tf.expand_dims(rescaled_image, 0)
+        return rescaled_image
 
     def load_model(self):
-        """ loads keras model """
-        vgg = tf.keras.applications.VGG19(include_top=False)
-        x = vgg.input
+        """Load the model"""
+        VGG19_model = tf.keras.applications.VGG19(include_top=False,
+                                                  weights='imagenet')
+        VGG19_model.save("VGG19_base_model")
+        custom_objects = {'MaxPooling2D': tf.keras.layers.AveragePooling2D}
+
+        vgg = tf.keras.models.load_model("VGG19_base_model",
+                                         custom_objects=custom_objects)
+
         style_outputs = []
         content_output = None
-        for i, layer in enumerate(vgg.layers[1:]):
-            '''print(type(layer))'''
-            if type(layer) is tf.keras.layers.MaxPooling2D:
-                ps = layer.pool_size
-                layer = tf.keras.layers.AveragePooling2D(pool_size=ps,
-                                                         strides=layer.strides,
-                                                         padding=layer.padding,
-                                                         name=layer.name)
-                x = layer(x)
-            else:
-                x = layer(x)
-                if layer.name in self.style_layers:
-                    style_outputs.append(x)
-                if layer.name == self.content_layer:
-                    content_output = x
+
+        for layer in vgg.layers:
+            if layer.name in self.style_layers:
+                style_outputs.append(layer.output)
+            if layer.name in self.content_layer:
+                content_output = layer.output
+
             layer.trainable = False
 
         outputs = style_outputs + [content_output]
+
         model = tf.keras.models.Model(vgg.input, outputs)
         self.model = model
