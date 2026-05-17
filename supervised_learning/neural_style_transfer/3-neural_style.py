@@ -23,6 +23,8 @@ class NST:
         alpha: weight for content cost
         beta: weight for style cost
         model: the Keras model used to calculate cost
+        gram_style_features: list of gram matrices from style layer outputs
+        content_feature: the content later output of the content image
 
     class constructor:
         def __init__(self, style_image, content_image, alpha=1e4, beta=1)
@@ -31,10 +33,14 @@ class NST:
         def scale_image(image):
             rescales an image so the pixel values are between 0 and 1
                 and the largest side is 512 pixels
+        def gram_matrix(input_layer):
+            calculates gram matrices
 
     public instance methods:
         def load_model(self):
             creates model used to calculate cost from VGG19 Keras base model
+        def generate_features(self):
+            extracts the features used to calculate neural style cost
     """
     style_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1',
                     'block4_conv1', 'block5_conv1']
@@ -84,6 +90,7 @@ class NST:
         self.alpha = alpha
         self.beta = beta
         self.load_model()
+        self.generate_features()
 
     @staticmethod
     def scale_image(image):
@@ -157,3 +164,51 @@ class NST:
 
         model = tf.keras.models.Model(vgg.input, outputs)
         self.model = model
+
+    @staticmethod
+    def gram_matrix(input_layer):
+        """
+        Calculates gram matrices
+
+        parameters:
+            input_layer [an instance of tf.Tensor or tf.Variable
+                of shape (1, h, w, c)]:
+                contains the layer output to calculate gram matrix for
+
+        returns:
+            tf.Tensor of shape (1, c, c) containing gram matrix of input_layer
+        """
+        if not isinstance(input_layer, (tf.Tensor, tf.Variable)):
+            raise TypeError("input_layer must be a tensor of rank 4")
+        if len(input_layer.shape) is not 4:
+            raise TypeError("input_layer must be a tensor of rank 4")
+        _, h, w, c = input_layer.shape
+        product = int(h * w)
+        features = tf.reshape(input_layer, (product, c))
+        gram = tf.matmul(features, features, transpose_a=True)
+        gram = tf.expand_dims(gram, axis=0)
+        gram /= tf.cast(product, tf.float32)
+        return (gram)
+
+    def generate_features(self):
+        """
+        Extracts the features used to calculate neural style cost
+
+        Sets public instance attribute:
+            gram_style_features and content_feature
+        """
+        VGG19_model = tf.keras.applications.vgg19
+        preprocess_style = VGG19_model.preprocess_input(
+            self.style_image * 255)
+        preprocess_content = VGG19_model.preprocess_input(
+            self.content_image * 255)
+
+        style_features = self.model(preprocess_style)[:-1]
+        content_feature = self.model(preprocess_content)[-1]
+
+        gram_style_features = []
+        for feature in style_features:
+            gram_style_features.append(self.gram_matrix(feature))
+
+        self.gram_style_features = gram_style_features
+        self.content_feature = content_feature

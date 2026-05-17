@@ -31,6 +31,8 @@ class NST:
         def scale_image(image):
             rescales an image so the pixel values are between 0 and 1
                 and the largest side is 512 pixels
+        def gram_matrix(input_layer):
+            calculates gram matrices
 
     public instance methods:
         def load_model(self):
@@ -157,3 +159,28 @@ class NST:
 
         model = tf.keras.models.Model(vgg.input, outputs)
         self.model = model
+
+    @staticmethod
+    def gram_matrix(input_layer):
+        """
+        Calculates gram matrices
+
+        parameters:
+            input_layer [an instance of tf.Tensor or tf.Variable
+                of shape (1, h, w, c)]:
+                contains the layer output to calculate gram matrix for
+
+        returns:
+            tf.Tensor of shape (1, c, c) containing gram matrix of input_layer
+        """
+        if not isinstance(input_layer, (tf.Tensor, tf.Variable)):
+            raise TypeError("input_layer must be a tensor of rank 4")
+        if len(input_layer.shape) is not 4:
+            raise TypeError("input_layer must be a tensor of rank 4")
+        _, h, w, c = input_layer.shape
+        product = int(h * w)
+        features = tf.reshape(input_layer, (product, c))
+        gram = tf.matmul(features, features, transpose_a=True)
+        gram = tf.expand_dims(gram, axis=0)
+        gram /= tf.cast(product, tf.float32)
+        return (gram)
