@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""
-Creates a TF-IDF embedding
-"""
+"""Module that creates a TF-IDF embedding matrix."""
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 def tf_idf(sentences, vocab=None):
+    """Creates a TF-IDF embedding matrix.
+
+    Args:
+        sentences: list of sentences to analyze.
+        vocab: list of the vocabulary words to use for the analysis.
+            If None, all words within sentences are used.
+
+    Returns:
+        Tuple of (embeddings, features) where embeddings is a
+        numpy.ndarray of shape (s, f) containing the embeddings and
+        features is a list of the features used.
     """
-    Creates a TF-IDF embedding
-    :param sentences: a list of sentences to analyze
-    :param vocab: a list of the vocabulary words to use for the analysis
-        If None, all words within sentences should be used
-    :return: embeddings, features
-    embeddings is a numpy.ndarray of shape (s, f) containing the embeddings
-        s is the number of sentences in sentences
-        f is the number of features analyzed
-    features is a list of the features used for embeddings
-    """
-    tfidf = TfidfVectorizer(vocabulary=vocab)
-    X = tfidf.fit_transform(sentences)
-    features = tfidf.get_feature_names()
+    vectorizer = TfidfVectorizer(vocabulary=vocab)
+    X = vectorizer.fit_transform(sentences)
+
     embeddings = X.toarray()
+    features = vectorizer.get_feature_names_out()
 
     return embeddings, features
