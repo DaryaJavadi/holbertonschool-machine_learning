@@ -1,41 +1,37 @@
 #!/usr/bin/env python3
 """
-function that creates masks for training/validation
+Creates all masks for training/validation
 """
-import tensorflow as tf
-
-
-def create_padding_mask(seq):
-    """
-    creates a mask to be applied for a given sequence
-    """
-    seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
-    """(batch_size, 1, 1, seq_len)"""
-    return seq[:, tf.newaxis, tf.newaxis, :]
-
-
-def create_look_ahead_mask(size):
-    """
-    creates a mask to be applied for a given sequence
-    """
-    mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
-    """(seq_len, seq_len)"""
-    return mask
+import tensorflow.compat.v2 as tf
 
 
 def create_masks(inputs, target):
     """
-    encoder and decoder masks
+    Creates all masks for training/validation
+    :param inputs: a tf.Tensor of shape (batch_size, seq_len_in) that
+    contains the input sentence
+    :param target: is a tf.Tensor of shape (batch_size, seq_len_out) that
+    contains the target sentence
+    :return: encoder_mask, look_ahead_mask, decoder_mask
+        encoder_mask is the tf.Tensor padding mask of shape (batch_size, 1,
+        1, seq_len_in) to be applied in the encoder
+        look_ahead_mask is the tf.Tensor look ahead mask of shape (
+        batch_size, 1, seq_len_out, seq_len_out) to be applied in the decoder
+        decoder_mask is the tf.Tensor padding mask of shape (batch_size, 1,
+        1, seq_len_in) to be applied in the decoder
     """
-    """Encoder padding mask"""
-    encoder_mask = create_padding_mask(inputs)
+    encoder_mask = tf.cast(tf.math.equal(inputs, 0), tf.float32)
+    encoder_mask = encoder_mask[:, tf.newaxis, tf.newaxis, :]
 
-    """Decoder padding mask"""
-    decoder_padding_mask = create_padding_mask(inputs)
+    decoder_mask = tf.cast(tf.math.equal(inputs, 0), tf.float32)
+    decoder_mask = decoder_mask[:, tf.newaxis, tf.newaxis, :]
 
-    """Look ahead mask"""
-    look_ahead_mask = create_look_ahead_mask(tf.shape(target)[1])
-    dec_target_padding_mask = create_padding_mask(target)
-    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
-    """(batch_size, 1, 1, seq_len)"""
-    return encoder_mask, combined_mask, decoder_padding_mask
+    size = target.shape[1]
+    look_ahead_mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
+
+    dec_mask = tf.cast(tf.math.equal(target, 0), tf.float32)
+    dec_mask = dec_mask[:, tf.newaxis, tf.newaxis, :]
+
+    combined_mask = tf.maximum(dec_mask, look_ahead_mask)
+
+    return encoder_mask, combined_mask, decoder_mask

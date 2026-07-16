@@ -1,96 +1,105 @@
 #!/usr/bin/env python3
-import tensorflow as tf
-
-"""training file for the transformer network"""
+"""
+Create the class Dataset that loads and preps a dataset for machine translation
+"""
+import tensorflow.compat.v2 as tf
 Dataset = __import__('3-dataset').Dataset
 create_masks = __import__('4-create_masks').create_masks
 Transformer = __import__('5-transformer').Transformer
 
+import tensorflow_datasets as tfds
 
-def train_transformer(N, dm, h, hidden, max_len, batch_size, epochs):
+tf.compat.v1.enable_eager_execution()
+
+
+class Dataset:
     """
-    Create and train a transformer model for machine translation.
-
-    Parameters
-    ----------
-    N : int
-        The number of blocks in the encoder and decoder.
-    dm : int
-        The dimensionality of the model.
-    h : int
-        The number of heads.
-    hidden : int
-        The number of hidden units in the fully connected layers.
-    max_len : int
-        The maximum number of tokens per sequence.
-    batch_size : int
-        The batch size for training.
-    epochs : int
-        The number of epochs to train for.
-
-    Returns
-    -------
-    model : Transformer
-        The trained transformer model.
+    Loads and preps a dataset
     """
-    """Load dataset"""
-    dataset = Dataset(batch_size=batch_size, max_len=max_len)
-    data_train = dataset.data_train
-    data_valid = dataset.data_valid
 
-    """Create transformer model"""
-    model = Transformer(N, dm, h, hidden, dataset.tokenizer_pt.vocab_size,
-                        dataset.tokenizer_en.vocab_size, max_len)
+    def __init__(self, batch_size, max_len):
+        """
+        Class constructor
+        """
 
-    """Set up optimizer with learning rate scheduling"""
-    warmup_steps = 4000
-    learning_rate = tf.keras.optimizers.schedules.LearningRateSchedule(
-        lambda step: dm**-0.5 * tf.minimum(step**-0.5, step * warmup_steps**-1.5)
-    )
+        def filter_max_length(x, y, max_length=max_len):
+            """
+            filter method
+            """
+            return tf.logical_and(tf.size(x) <= max_length,
+                                  tf.size(y) <= max_length)
 
-    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9,
-                                         beta_2=0.98, epsilon=1e-9)
+        examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en',
+                                       with_info=True,
+                                       as_supervised=True)
 
-    """Compile model with sparse categorical crossentropy loss"""
-    model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
+        self.data_train = examples['train']
+        self.data_valid = examples['validation']
 
-    """Training loop"""
-    for epoch in range(epochs):
-        epoch_loss = 0
-        epoch_accuracy = 0
-        steps = 0
+        PT, EN = self.tokenize_dataset(self.data_train)
+        self.tokenizer_pt, self.tokenizer_en = PT, EN
 
-        for (pt, en) in data_train:
-            steps += 1
-            with tf.GradientTape() as tape:
-                """Create masks"""
-                encoder_mask, combined_mask, decoder_mask = create_masks(
-                    pt, en)
+        self.data_train = self.data_train.map(self.tf_encode)
+        self.data_train = self.data_train.filter(filter_max_length)
+        self.data_train = self.data_train.cache()
 
-                """Forward pass"""
-                predictions = model(pt, en, True, encoder_mask, combined_mask)
-                loss = model.compiled_loss(en, predictions)
+        shu = metadata.splits['train'].num_examples
+        self.data_train = self.data_train.shuffle(shu)
+        pad_shape = ([None], [None])
+        self.data_train = self.data_train.padded_batch(batch_size,
+                                                       padded_shapes=pad_shape)
+        aux = tf.data.experimental.AUTOTUNE
+        self.data_train = self.data_train.prefetch(aux)
 
-            """Compute gradients"""
-            gradients = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(
-                zip(gradients, model.trainable_variables))
+        self.data_valid = self.data_valid.map(self.tf_encode)
+        self.data_valid = self.data_valid.filter(filter_max_length)
+        self.data_valid = self.data_valid.padded_batch(batch_size,
+                                                       padded_shapes=pad_shape)
 
-            """Update loss and accuracy"""
-            batch_loss, batch_accuracy = model.evaluate(pt, en, verbose=0)
-            epoch_loss += batch_loss
-            epoch_accuracy += batch_accuracy
+    def tokenize_dataset(self, data):
+        """
+        Creates sub-word tokenizers for our dataset
+        :param data: a tf.data.Dataset whose examples are formatted as a
+        tuple (pt, en)
+            pt is the tf.Tensor containing the Portuguese sentence
+            en is the tf.Tensor containing the corresponding English sentence
+        :return: tokenizer_pt, tokenizer_en
+            tokenizer_pt is the Portuguese tokenizer
+            tokenizer_en is the English tokenizer
+        """
+        tokenizer_pt = tfds.features.text.SubwordTextEncoder.build_from_corpus(
+            (pt.numpy() for pt, en in data), target_vocab_size=2 ** 15)
 
-            if steps % 50 == 0:
-                print(f"Epoch {epoch + 1}, batch {steps}: "
-                      f"loss {batch_loss:.4f} accuracy {batch_accuracy:.4f}")
+        tokenizer_en = tfds.features.text.SubwordTextEncoder.build_from_corpus(
+            (en.numpy() for pt, en in data), target_vocab_size=2 ** 15)
 
-        """Print epoch loss and accuracy"""
-        epoch_loss /= steps
-        epoch_accuracy /= steps
-        print(
-            f"Epoch {epoch + 1}: loss {epoch_loss:.4f} accuracy {epoch_accuracy:.4f}")
+        return tokenizer_pt, tokenizer_en
 
-    return model
+    def encode(self, pt, en):
+        """
+        Encodes a translation into tokens
+        :param pt: the tf.Tensor containing the Portuguese sentence
+        :param en: the tf.Tensor containing the corresponding English sentence
+        :return: pt_tokens, en_tokens
+            pt_tokens is a tf.Tensor containing the Portuguese tokens
+            en_tokens is a tf.Tensor containing the English tokens
+        """
+        pt_tokens = [self.tokenizer_pt.vocab_size] + self.tokenizer_pt.encode(
+            pt.numpy()) + [self.tokenizer_pt.vocab_size + 1]
 
+        en_tokens = [self.tokenizer_en.vocab_size] + self.tokenizer_en.encode(
+            en.numpy()) + [self.tokenizer_en.vocab_size + 1]
+
+        return pt_tokens, en_tokens
+
+    def tf_encode(self, pt, en):
+        """
+        Acts as a tensorflow wrapper for the encode instance method
+        """
+        result_pt, result_en = tf.py_function(self.encode,
+                                              [pt, en],
+                                              [tf.int64, tf.int64])
+        result_pt.set_shape([None])
+        result_en.set_shape([None])
+
+        return result_pt, result_en
