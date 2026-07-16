@@ -1,105 +1,90 @@
 #!/usr/bin/env python3
 """
-Create the class Dataset that loads and preps a dataset for machine translation
+This module defines the class CustomSchedule for a custom learning rate
+schedule and the function train_transformer for training a Transformer
+model.
 """
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
+import numpy as np
 Dataset = __import__('3-dataset').Dataset
 create_masks = __import__('4-create_masks').create_masks
 Transformer = __import__('5-transformer').Transformer
 
-import tensorflow_datasets as tfds
 
-tf.compat.v1.enable_eager_execution()
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    """ This class creates a learning rate schedule. """
+
+    def __init__(self, dm, warmup_steps=4000):
+        """
+        This method initializes the CustomSchedule instance.
+        """
+        super(CustomSchedule, self).__init__()
+
+        self.dm = tf.cast(dm, tf.float32)
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        """
+        This method calculates the learning rate for a given step.
+        """
+        step = tf.cast(step, tf.float32)  # Convert to float32
+        arg1 = tf.math.rsqrt(step)
+        arg2 = step * (self.warmup_steps ** -1.5)
+
+        return tf.math.rsqrt(self.dm) * tf.math.minimum(arg1, arg2)
 
 
-class Dataset:
+def train_transformer(N, dm, h, hidden, max_len, batch_size, epochs):
     """
-    Loads and preps a dataset
+    This method trains a Transformer model on a dataset.
     """
+    data = Dataset(batch_size, max_len)
+    input_vocab = data.tokenizer_pt.vocab_size + 2
+    target_vocab = data.tokenizer_en.vocab_size + 2
 
-    def __init__(self, batch_size, max_len):
-        """
-        Class constructor
-        """
+    learning_rate = CustomSchedule(dm, warmup_steps=1000)
+    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9,
+                                         beta_2=0.98, epsilon=1e-9)
 
-        def filter_max_length(x, y, max_length=max_len):
-            """
-            filter method
-            """
-            return tf.logical_and(tf.size(x) <= max_length,
-                                  tf.size(y) <= max_length)
+    train_loss = tf.keras.metrics.Mean(name='train_loss')
+    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(
+        name='train_accuracy')
 
-        examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en',
-                                       with_info=True,
-                                       as_supervised=True)
+    transformer = Transformer(N, dm, h, hidden, input_vocab, target_vocab,
+                              max_len, max_len, drop_rate=0.1)
 
-        self.data_train = examples['train']
-        self.data_valid = examples['validation']
+    for epoch in range(epochs):
+        train_loss.reset_state()
+        train_accuracy.reset_state()
 
-        PT, EN = self.tokenize_dataset(self.data_train)
-        self.tokenizer_pt, self.tokenizer_en = PT, EN
+        for (batch, (input, target)) in enumerate(data.data_train):
+            target_input = target[:, :-1]
+            target_real = target[:, 1:]
 
-        self.data_train = self.data_train.map(self.tf_encode)
-        self.data_train = self.data_train.filter(filter_max_length)
-        self.data_train = self.data_train.cache()
+            enc_padding_mask, combined_mask, dec_padding_mask = create_masks(
+                input, target_input)
 
-        shu = metadata.splits['train'].num_examples
-        self.data_train = self.data_train.shuffle(shu)
-        pad_shape = ([None], [None])
-        self.data_train = self.data_train.padded_batch(batch_size,
-                                                       padded_shapes=pad_shape)
-        aux = tf.data.experimental.AUTOTUNE
-        self.data_train = self.data_train.prefetch(aux)
+            with tf.GradientTape() as tape:
+                predictions = transformer(input, target_input, training=True,
+                                          encoder_mask=enc_padding_mask,
+                                          look_ahead_mask=combined_mask,
+                                          decoder_mask=dec_padding_mask)
+                loss = tf.keras.losses.SparseCategoricalCrossentropy(
+                    from_logits=True)(target_real, predictions)
 
-        self.data_valid = self.data_valid.map(self.tf_encode)
-        self.data_valid = self.data_valid.filter(filter_max_length)
-        self.data_valid = self.data_valid.padded_batch(batch_size,
-                                                       padded_shapes=pad_shape)
+            gradients = tape.gradient(loss, transformer.trainable_variables)
+            optimizer.apply_gradients(
+                zip(gradients, transformer.trainable_variables))
 
-    def tokenize_dataset(self, data):
-        """
-        Creates sub-word tokenizers for our dataset
-        :param data: a tf.data.Dataset whose examples are formatted as a
-        tuple (pt, en)
-            pt is the tf.Tensor containing the Portuguese sentence
-            en is the tf.Tensor containing the corresponding English sentence
-        :return: tokenizer_pt, tokenizer_en
-            tokenizer_pt is the Portuguese tokenizer
-            tokenizer_en is the English tokenizer
-        """
-        tokenizer_pt = tfds.features.text.SubwordTextEncoder.build_from_corpus(
-            (pt.numpy() for pt, en in data), target_vocab_size=2 ** 15)
+            train_loss(loss)
+            train_accuracy.update_state(target_real, predictions)
 
-        tokenizer_en = tfds.features.text.SubwordTextEncoder.build_from_corpus(
-            (en.numpy() for pt, en in data), target_vocab_size=2 ** 15)
+            if batch % 50 == 0:
+                print('Epoch {}, Batch {}: Loss {:.4f}, Accuracy {:.4f}'
+                      .format(epoch + 1, batch, train_loss.result(),
+                              train_accuracy.result()))
 
-        return tokenizer_pt, tokenizer_en
+        print('Epoch {}: Loss {:.4f}, Accuracy {:.4f}'.format(
+            epoch + 1, train_loss.result(), train_accuracy.result()))
 
-    def encode(self, pt, en):
-        """
-        Encodes a translation into tokens
-        :param pt: the tf.Tensor containing the Portuguese sentence
-        :param en: the tf.Tensor containing the corresponding English sentence
-        :return: pt_tokens, en_tokens
-            pt_tokens is a tf.Tensor containing the Portuguese tokens
-            en_tokens is a tf.Tensor containing the English tokens
-        """
-        pt_tokens = [self.tokenizer_pt.vocab_size] + self.tokenizer_pt.encode(
-            pt.numpy()) + [self.tokenizer_pt.vocab_size + 1]
-
-        en_tokens = [self.tokenizer_en.vocab_size] + self.tokenizer_en.encode(
-            en.numpy()) + [self.tokenizer_en.vocab_size + 1]
-
-        return pt_tokens, en_tokens
-
-    def tf_encode(self, pt, en):
-        """
-        Acts as a tensorflow wrapper for the encode instance method
-        """
-        result_pt, result_en = tf.py_function(self.encode,
-                                              [pt, en],
-                                              [tf.int64, tf.int64])
-        result_pt.set_shape([None])
-        result_en.set_shape([None])
-
-        return result_pt, result_en
+    return transformer
