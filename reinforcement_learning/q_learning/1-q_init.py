@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
-""" task 1: 1. Initialize the Q-table"""
+"""
+This module initializes the Q-table for a FrozenLake environment.
+It contains the function 'q_init' that creates and returns a Q-table
+as a NumPy array of zeros with shape (n_states, n_actions).
+"""
 import numpy as np
 
 
 def q_init(env):
-    """[initializes the Q-table:]
-    Args:
-        env ([type]): [description]
-    Returns: the Q-table as a numpy.ndarray of zeros
     """
+    This function initializes the Q-table with zeros.
+    Args:
+        env (gym.Env): FrozenLake environment instance.
+    Returns:
+        numpy.ndarray: Q-table initialized with zeros, shape
+        (n_states, n_actions).
+    """
+    # Get the number of states from the environment's observation space.
+    n_states = env.observation_space.n
 
-    action_space_size = env.action_space.n
-    states_space_size = env.observation_space.n
+    # Get the number of actions from the environment's action space.
+    n_actions = env.action_space.n
 
-    q_table = np.zeros((states_space_size, action_space_size))
+    # Create the Q-table as a NumPy array of zeros with shape
+    # (n_states, n_actions).
+    q_table = np.zeros((n_states, n_actions))
 
     return q_table

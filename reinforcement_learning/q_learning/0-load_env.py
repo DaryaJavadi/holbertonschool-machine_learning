@@ -1,33 +1,29 @@
 #!/usr/bin/env python3
-""" Task 0: 0. Load the FrozenLake environment"""
+"""
+Module to load the FrozenLake environment using gymnasium.
+This module contains a function to load the FrozenLake environment
+from Gymnasium, allowing the user to specify a custom map description,
+a pre-made map name, and whether the environment is slippery.
+"""
 import gymnasium as gym
 
 
 def load_frozen_lake(desc=None, map_name=None, is_slippery=False):
-    """[Function that loads the pre-made FrozenLakeEnv env from OpenAI’s gym]
-    Args:
-        desc ([list], optional):    [list of lists with a custom description
-                                    of the map to load for the environment].
-                                    Defaults to None.
-        map_name ([str], optional): [string with the pre-made map to load].
-                                Defaults to None.
-        is_slippery (bool, optional): [description]. Defaults to False.
-    Returns: the environment
     """
-
-    # load all enviroments
-    # load the very basic taxi environment.
-    # env = gym.make("Taxi-v2")
-    # To initialize the environment, we must reset it.
-    # determine the total number of possible states:
-    # env.observation_space.n
-    # If you would like to visualize the current state, type the following:
-    # env.render()
-
-    env = gym.make("FrozenLake-v0",
-                   desc=desc,
-                   map_name=map_name,
-                   is_slippery=is_slippery,
-                   render_mode="ansi")
-    env.reset()
+    This function loads the pre-made FrozenLake environment from gymnasium.
+    Args:
+        desc (list of lists or None): Custom description of the map.
+                                      If provided, should be a list of lists
+                                      representing the map layout.
+        map_name (str or None): Name of the pre-made map to load.
+                                For example, '4x4' or '8x8'.
+        is_slippery (bool): Determines whether the ice is slippery (stochastic
+            behavior).
+    Returns:
+        gym.Env: The FrozenLake environment with the specified parameters.
+    """
+    # Create the FrozenLake environment using gymnasium.make with the given
+    # parameters.
+    env = gym.make('FrozenLake-v1', desc=desc, map_name=map_name,
+                   is_slippery=is_slippery, render_mode="ansi")
     return env
