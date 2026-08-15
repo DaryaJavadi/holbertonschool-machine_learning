@@ -1,0 +1,1 @@
+Yay, my agent learned to destroy non-existent flags.
